@@ -37,7 +37,6 @@ func main() {
 		logRec := fmt.Sprintf("ticket %d is printed", ticket.number)
 		log.Printf("%s", logRec)
 		fmt.Fprintf(w, "number: %d", ticket.number)
-		log.Printf("%s", logRec)
 		waitingTicket <- ticket
 		logRec = fmt.Sprintf("ticket %d is enqueued", ticket.number)
 		log.Printf("%s", logRec)
@@ -49,17 +48,19 @@ func main() {
 
 	serverMux.HandleFunc("/server/", func(w http.ResponseWriter, r *http.Request) {
 		reqCmd := strings.Split(r.URL.String(), "/")
+		ctx := r.Context()
 
 		if len(reqCmd) > 3 && reqCmd[3] == "dequeue" {
 			select {
 			case ticket := <-waitingTicket:
-				logRec := fmt.Sprintf("ticket %d to server %s", ticket.number, reqCmd[2])
-				fmt.Fprintf(w, "server: %s<br>", reqCmd[2])
+				fmt.Fprintf(w, "server: %s\n", reqCmd[2])
 				fmt.Fprintf(w, "number: %d", ticket.number)
+				logRec := fmt.Sprintf("ticket %d is dequeued by server %s", ticket.number, reqCmd[2])
 				// monitor <- logRec
 				log.Printf("%s", logRec)
-			case <-r.Cancel:
-
+			case <-ctx.Done():
+				logRec := fmt.Sprintf("server %s gives up to dequeue\n", reqCmd[2])
+				log.Printf("%s", logRec)
 			}
 		} else {
 			fmt.Fprintf(w, "404")
